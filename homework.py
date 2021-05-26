@@ -36,7 +36,7 @@ def get_homework_statuses(current_timestamp):
 
 
 def send_message(message, bot_client):
-    """Send message to telegram chat."""
+    """Send message to CHAT_ID telegram chat."""
     return bot_client.send_message(CHAT_ID, message)
 
 

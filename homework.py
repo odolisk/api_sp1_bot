@@ -57,7 +57,7 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     logger.setLevel(logging.WARNING)
 
-    current_timestamp = 1616161616  # int(time.time())
+    current_timestamp = int(time.time())
 
     while True:
         try:

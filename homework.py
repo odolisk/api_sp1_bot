@@ -1,9 +1,11 @@
-import logging
-from logging.handlers import RotatingFileHandler
 import os
 import requests
-import telegram
 import time
+
+import logging
+import telegram
+
+from logging.handlers import RotatingFileHandler
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'homework.log')
 
@@ -58,7 +60,7 @@ def parse_homework_status(homework):
         logging.error(verdict)
         return verdict
 
-    if hw_status not in RIGHT_STATUS_VERDICTS.keys():
+    if hw_status not in RIGHT_STATUS_VERDICTS:
         verdict = WRONG_VERDICTS['wrong_status']
         logging.error(verdict)
         return verdict
@@ -69,53 +71,44 @@ def parse_homework_status(homework):
 
 def get_homework_statuses(current_timestamp):
     """Get all homework from current_timestamp date."""
-    if current_timestamp is None:
-        current_timestamp = 0
     params = {
         'from_date': current_timestamp
     }
-    homework_statuses = requests.get(YP_PATH, params=params, headers=HEADER)
-    if not homework_statuses:
+    try:
+        homework_statuses = requests.get(
+            YP_PATH, params=params, headers=HEADER)
+    except Exception as e:
+        logging.exception(f'Загрузка данных завершилась с ошибкой: {e}')
         return None
     return homework_statuses.json()
 
 
 def send_message(message, bot_client):
     """Send message to CHAT_ID telegram chat."""
-    if not bot_client or not message:
-        logging.error('Отсутствует бот или сообщение.')
-        return None
     return bot_client.send_message(text=message, chat_id=CHAT_ID)
 
 
 def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
-
+    logging.debug('Запуск бота...')
     while True:
         try:
-            logging.debug('Запуск бота...')
             new_homework = get_homework_statuses(current_timestamp)
             homeworks = new_homework.get('homeworks')
             if homeworks is None:
-                msg = 'Неверный ответ от сервера'
-                logging.error(msg)
-                send_message(msg, bot)
-                exit(msg)
-
-            for homework in reversed(homeworks):
-                msg = parse_homework_status(homework)
-                logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
-                send_message(msg, bot)
-                logging.info(f'Конец отправки сообщения {msg} '
-                             'в чат #{CHAT_ID}')
+                logging.info('Новых данных нет')
+            else:
+                for homework in reversed(homeworks):
+                    msg = parse_homework_status(homework)
+                    logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
+                    send_message(msg, bot)
 
             previous_timestamp = current_timestamp
             current_timestamp = new_homework.get(
                 'current_date', current_timestamp)
             if current_timestamp is None:
                 current_timestamp = previous_timestamp
-            logging.debug('Окончание работы бота...')
             time.sleep(1200)
         except Exception as e:
             err_msg = f'Бот столкнулся с ошибкой: {e}'

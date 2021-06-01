@@ -1,11 +1,11 @@
+import json
 import os
-import requests
-import time
-
 import logging
-import telegram
-
+import time
 from logging.handlers import RotatingFileHandler
+
+import requests
+import telegram
 
 LOG_FILE = os.path.join(os.path.expanduser('~'), 'homework.log')
 
@@ -25,7 +25,7 @@ try:
     PRAKTIKUM_TOKEN = os.environ['PRAKTIKUM_TOKEN']
     TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
     CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
-except Exception as e:
+except KeyError as e:
     err_msg = f'Ошибка - переменная среды {e} не установлена!'
     logging.exception(err_msg)
     exit(err_msg)
@@ -77,10 +77,13 @@ def get_homework_statuses(current_timestamp):
     try:
         homework_statuses = requests.get(
             YP_PATH, params=params, headers=HEADER)
-    except Exception as e:
-        logging.exception(f'Загрузка данных завершилась с ошибкой: {e}')
-        return None
-    return homework_statuses.json()
+        hw_statuses = homework_statuses.json()
+    except (requests.exceptions.HTTPError,
+            json.decoder.JSONDecodeError) as err:
+        err_msg = f'Загрузка данных завершилась с ошибкой: {err}'
+        logging.exception(err_msg)
+        return err
+    return hw_statuses
 
 
 def send_message(message, bot_client):
@@ -95,20 +98,18 @@ def main():
     while True:
         try:
             new_homework = get_homework_statuses(current_timestamp)
-            homeworks = new_homework.get('homeworks')
-            if homeworks is None:
-                logging.info('Новых данных нет')
-            else:
+            if not isinstance(
+                new_homework, requests.exceptions.HTTPError) or not isinstance(
+                    new_homework, json.decoder.JSONDecodeError):
+                homeworks = new_homework.get('homeworks')
                 for homework in reversed(homeworks):
                     msg = parse_homework_status(homework)
                     logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
                     send_message(msg, bot)
 
-            previous_timestamp = current_timestamp
-            current_timestamp = new_homework.get(
-                'current_date', current_timestamp)
-            if current_timestamp is None:
-                current_timestamp = previous_timestamp
+                previous_timestamp = current_timestamp
+                current_timestamp = new_homework.get(
+                    'current_date', current_timestamp) or previous_timestamp
             time.sleep(1200)
         except Exception as e:
             err_msg = f'Бот столкнулся с ошибкой: {e}'

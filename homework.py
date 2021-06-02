@@ -1,7 +1,7 @@
-import json
 import os
 import logging
 import time
+from json.decoder import JSONDecodeError
 from logging.handlers import RotatingFileHandler
 
 import requests
@@ -43,6 +43,8 @@ RIGHT_STATUS_VERDICTS = {
     'reviewing': 'Ваша работа всё ещё проверяется.',
 }
 
+# Если добавлять "У вас проверили работу в этот словарь", то тесты ругаются.
+# Они проверяют соответствие строке.
 WRONG_VERDICTS = {
     'wrong_data': 'Неверный ответ сервера. Данные отсутствуют.',
     'wrong_status': ('Статус в ответе от сервера не совпадает с необходимыми.'
@@ -65,12 +67,16 @@ def parse_homework_status(homework):
         logging.error(verdict)
         return verdict
 
+    # решил вынести в отдельную проверку, чтобы не ругались тесты.
+    if hw_status == 'reviewing':
+        return RIGHT_STATUS_VERDICTS['reviewing']
+
     verdict = RIGHT_STATUS_VERDICTS[hw_status]
     return f'У вас проверили работу "{hw_name}"! {verdict}'
 
 
 def get_homework_statuses(current_timestamp):
-    """Get all homework from current_timestamp date."""
+    """Get all homeworks from current_timestamp date."""
     params = {
         'from_date': current_timestamp
     }
@@ -79,10 +85,10 @@ def get_homework_statuses(current_timestamp):
             YP_PATH, params=params, headers=HEADER)
         hw_statuses = homework_statuses.json()
     except (requests.exceptions.HTTPError,
-            json.decoder.JSONDecodeError) as err:
+            JSONDecodeError) as err:
         err_msg = f'Загрузка данных завершилась с ошибкой: {err}'
         logging.exception(err_msg)
-        return err
+        return None
     return hw_statuses
 
 
@@ -98,18 +104,22 @@ def main():
     while True:
         try:
             new_homework = get_homework_statuses(current_timestamp)
-            if not isinstance(
-                new_homework, requests.exceptions.HTTPError) or not isinstance(
-                    new_homework, json.decoder.JSONDecodeError):
+            if new_homework is not None:
                 homeworks = new_homework.get('homeworks')
+                # homeworks разворачивается потому, что в homeworks
+                # работы идут от последней к первой.
+                # Ситуация, когда работ будет много - тестовая,
+                # когда from_date принимает значение даты до начала
+                # отправки заданий или 0, т.е. за всё время.
+                # Второй вариант - когда на сайте практикума
+                # сломался API и не отдаёт какое-то время json
                 for homework in reversed(homeworks):
                     msg = parse_homework_status(homework)
                     logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
                     send_message(msg, bot)
 
-                previous_timestamp = current_timestamp
                 current_timestamp = new_homework.get(
-                    'current_date', current_timestamp) or previous_timestamp
+                    'current_date', current_timestamp) or current_timestamp
             time.sleep(1200)
         except Exception as e:
             err_msg = f'Бот столкнулся с ошибкой: {e}'

@@ -43,8 +43,6 @@ RIGHT_STATUS_VERDICTS = {
     'reviewing': 'Ваша работа всё ещё проверяется.',
 }
 
-# Если добавлять "У вас проверили работу в этот словарь", то тесты ругаются.
-# Они проверяют соответствие строке.
 WRONG_VERDICTS = {
     'wrong_data': 'Неверный ответ сервера. Данные отсутствуют.',
     'wrong_status': ('Статус в ответе от сервера не совпадает с необходимыми.'
@@ -67,7 +65,6 @@ def parse_homework_status(homework):
         logging.error(verdict)
         return verdict
 
-    # решил вынести в отдельную проверку, чтобы не ругались тесты.
     if hw_status == 'reviewing':
         return RIGHT_STATUS_VERDICTS['reviewing']
 
@@ -106,18 +103,9 @@ def main():
             new_homework = get_homework_statuses(current_timestamp)
             if new_homework is not None:
                 homeworks = new_homework.get('homeworks')
-                # homeworks разворачивается потому, что в homeworks
-                # работы идут от последней к первой.
-                # Ситуация, когда работ будет много - тестовая,
-                # когда from_date принимает значение даты до начала
-                # отправки заданий или 0, т.е. за всё время.
-                # Второй вариант - когда на сайте практикума
-                # сломался API и не отдаёт какое-то время json
-                for homework in reversed(homeworks):
-                    msg = parse_homework_status(homework)
-                    logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
-                    send_message(msg, bot)
-
+                msg = parse_homework_status(homeworks[0])
+                logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
+                send_message(msg, bot)
                 current_timestamp = new_homework.get(
                     'current_date', current_timestamp) or current_timestamp
             time.sleep(1200)

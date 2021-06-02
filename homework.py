@@ -101,19 +101,20 @@ def main():
     while True:
         try:
             new_homework = get_homework_statuses(current_timestamp)
-            if new_homework is not None:
+            if new_homework:
                 homeworks = new_homework.get('homeworks')
-                msg = parse_homework_status(homeworks[0])
-                logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
-                send_message(msg, bot)
-                current_timestamp = new_homework.get(
-                    'current_date', current_timestamp) or current_timestamp
+                if homeworks:
+                    msg = parse_homework_status(homeworks[0])
+                    logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
+                    send_message(msg, bot)
+                    current_timestamp = new_homework.get(
+                        'current_date', current_timestamp) or current_timestamp
             time.sleep(1200)
         except Exception as e:
             err_msg = f'Бот столкнулся с ошибкой: {e}'
             logging.exception(err_msg)
             send_message(err_msg, bot)
-            time.sleep(20)
+            time.sleep(180)
 
 
 if __name__ == '__main__':

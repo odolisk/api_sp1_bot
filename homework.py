@@ -54,6 +54,7 @@ def parse_homework_status(homework):
     """Parse homework and return verdict."""
     hw_name = homework.get('homework_name')
     hw_status = homework.get('status')
+    hw_commment = homework('comment')
 
     if hw_name is None or hw_status is None:
         verdict = WRONG_VERDICTS['wrong_data']
@@ -66,10 +67,10 @@ def parse_homework_status(homework):
         return verdict
 
     if hw_status == 'reviewing':
-        return RIGHT_STATUS_VERDICTS['reviewing']
+        return RIGHT_STATUS_VERDICTS[hw_status]
 
     verdict = RIGHT_STATUS_VERDICTS[hw_status]
-    return f'У вас проверили работу "{hw_name}"! {verdict}'
+    return f'У вас проверили работу "{hw_name}"! {verdict}. {hw_commment}'
 
 
 def get_homework_statuses(current_timestamp):
@@ -85,7 +86,7 @@ def get_homework_statuses(current_timestamp):
             JSONDecodeError) as err:
         err_msg = f'Загрузка данных завершилась с ошибкой: {err}'
         logging.exception(err_msg)
-        return None
+        return
     return hw_statuses
 
 
@@ -103,7 +104,7 @@ def main():
             new_homework = get_homework_statuses(current_timestamp)
             if new_homework:
                 homeworks = new_homework.get('homeworks')
-                if homeworks:
+                if homeworks is not None:
                     msg = parse_homework_status(homeworks[0])
                     logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
                     send_message(msg, bot)

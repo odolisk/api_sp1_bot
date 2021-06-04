@@ -70,7 +70,7 @@ def parse_homework_status(homework):
         return RIGHT_STATUS_VERDICTS[hw_status]
 
     verdict = RIGHT_STATUS_VERDICTS[hw_status]
-    return f'У вас проверили работу "{hw_name}"! {verdict}. {hw_commment}'
+    return f'У вас проверили работу "{hw_name}"! {verdict}.\n{hw_commment}'
 
 
 def get_homework_statuses(current_timestamp):

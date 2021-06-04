@@ -54,7 +54,7 @@ def parse_homework_status(homework):
     """Parse homework and return verdict."""
     hw_name = homework.get('homework_name')
     hw_status = homework.get('status')
-    hw_commment = homework('comment')
+    hw_commment = homework.get('reviewer_comment')
 
     if hw_name is None or hw_status is None:
         verdict = WRONG_VERDICTS['wrong_data']
@@ -104,12 +104,15 @@ def main():
             new_homework = get_homework_statuses(current_timestamp)
             if new_homework:
                 homeworks = new_homework.get('homeworks')
-                if homeworks is not None:
-                    msg = parse_homework_status(homeworks[0])
-                    logging.info(f'Отправка сообщения {msg} в чат #{CHAT_ID}')
-                    send_message(msg, bot)
-                    current_timestamp = new_homework.get(
-                        'current_date', current_timestamp) or current_timestamp
+                if homeworks:
+                    for homework in reversed(homeworks):
+                        msg = parse_homework_status(homework)
+                        logging.info(
+                            f'Отправка сообщения {msg} в чат #{CHAT_ID}')
+                        send_message(msg, bot)
+                        current_timestamp = new_homework.get(
+                            'current_date',
+                            current_timestamp) or current_timestamp
             time.sleep(1200)
         except Exception as e:
             err_msg = f'Бот столкнулся с ошибкой: {e}'
